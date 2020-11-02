@@ -29,3 +29,15 @@ exports a fingerprint json file to a MISP event and publish it on a MISP instanc
   -t or --threat_level, type=int : The threat level ID of the newly created event [1-4]
   
   -s or --subnets : add subnets as attributes instead of ips
+
+
+**Requirements** : 
+
+Install PyMISP from pip
+
+pip install pymisp
+
+or
+
+pip3 install pymisp
+
