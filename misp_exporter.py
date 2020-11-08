@@ -4,13 +4,11 @@
 ###############################################################################
 #  
 #  
-# @copyright - mada - madi.skype@gmail.com 
+# @copyright - Madalina - madi.skype@gmail.com 
 # @copyright - Joao Ceron - ceron@botlog.org 
 #  
 ###############################################################################
 
-###############################################################################
-### Python modules
 import argparse
 import logging
 import os
@@ -19,12 +17,12 @@ import re
 import signal
 import sys
 import string
-
 import ipaddress
 import json
 import ipaddr
 import math
 from pymisp import ExpandedPyMISP, MISPEvent, MISPAttribute
+from pymisp.tools import GenericObjectGenerator
 #from keys import misp_url, misp_key, misp_verifycert
 from pathlib import Path
 
@@ -35,8 +33,6 @@ try:
 except NameError:
     pass
 
-###############################################################################
-### Program settings
 
 #default values, we use them if no cmd line arguments are present
 #the fingerprint json file should always be present as an arg 
@@ -48,23 +44,20 @@ threat_level = '2'
 event_info = 'Test DDoS event'
 analysis_level = '2'
 addips = True
-nodedstport = 'dstport'
-nodeproto = 'ip_proto'
-nodeprotostr = 'highest_protocol'
+nodedport = 'dstport'
+nodeproto4 = 'ip_proto'
+nodeproto7 = 'highest_protocol'
+no_of_ips = 0
 
 #parameters fo concordia-2020
 misp_url = 'https://misp.concordia-h2020.eu/'
-misp_key = '<your MISP API Key goes here>'
+misp_key = '<your MISP automation key goes here>'
 misp_verifycert = False
 
 verbose = False
 version = 0.1
 program_name = os.path.basename(__file__)
 
-no_of_ips = 0
-###############################################################################
-
-### Subroutines
     
 #------------------------------------------------------------------------------
 def parser_args ():
@@ -73,10 +66,10 @@ def parser_args ():
     parser.add_argument("--version", help="print version and exit", action="store_true")
     parser.add_argument("-v","--verbose", help="print info msg", action="store_true")
     parser.add_argument("-d","--debug", help="print debug info", action="store_true")
-    parser.add_argument('-f','--fingerprint', required=True, help="fingerprint json file")
-    parser.add_argument('-n','--node', help="json file node, default attackers", action="store_true")
-    parser.add_argument('-u','--misp_url', help="URL of the MISP instance where to publish", action="store_true")
-    parser.add_argument('-k','--misp_apikey', help="API key of the user of the MISP instance where to publish", action="store_true")
+    parser.add_argument("-f","--fingerprint", required=True, help="fingerprint json file")
+    parser.add_argument("-n","--node", help="json file node, default attackers", action="store_true")
+    parser.add_argument("-u","--misp_url", help="URL of the MISP instance where to publish", action="store_true")
+    parser.add_argument("-k","--misp_apikey", help="API key of the user of the MISP instance where to publish", action="store_true")
     parser.add_argument("-l","--distribution", type=int, help="The distribution level setting used for the attributes and for the newly created event, if relevant. [0-3].")
     parser.add_argument("-i","--event_info", help="Used to populate the event info field, which is the event name in MISP")
     parser.add_argument("-a","--analysis_level", type=int, help="The analysis level of the newly created event, if applicable. [0-2]")
@@ -104,13 +97,82 @@ def find_ips(args):
     jsondata = json.load(infile)
     data = jsondata[node]
     df = pd.DataFrame(data, columns=['ip'])
-    infile.close()
-    
+        
     df.drop_duplicates('ip', keep='first', inplace=True)
     df['src_net'] =  df.ip.str.extract('(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.)\\d{1,3}')+"0"
     df['ip'] = df['ip'].apply(lambda x: ipaddr.IPv4Address(x))
 
     print ('ip table size: ', len(df['ip'])) 
+    
+    infile.close()
+
+    return df
+#------------------------------------------------------------------------------
+def find_ip_proto(args):
+
+    file = args.fingerprint
+    if (args.fingerprint):
+        file = args.fingerprint
+        if not (os.path.isfile(file)):
+            print ("file not found: {}".format(file))
+            sys.exit(0)
+
+    infile = open(args.fingerprint)
+    jsondata = json.load(infile)
+    data = jsondata[nodeproto4]
+    df = pd.DataFrame(data, columns=['ip_proto'])
+        
+    df.drop_duplicates('ip_proto', keep='first', inplace=True)
+
+    print ('ip_proto table size: ', len(df['ip_proto'])) 
+    
+    infile.close()
+
+    return df
+
+#------------------------------------------------------------------------------
+def find_high_proto(args):
+
+    file = args.fingerprint
+    if (args.fingerprint):
+        file = args.fingerprint
+        if not (os.path.isfile(file)):
+            print ("file not found: {}".format(file))
+            sys.exit(0)
+
+    infile = open(args.fingerprint)
+    jsondata = json.load(infile)
+    data = jsondata[nodeproto7]
+    df = pd.DataFrame(data, columns=['high_proto'])
+        
+    df.drop_duplicates('high_proto', keep='first', inplace=True)
+
+    print ('high_proto table size: ', len(df['high_proto'])) 
+    
+    infile.close()
+
+    return df
+
+#------------------------------------------------------------------------------
+def find_dstport(args):
+
+    file = args.fingerprint
+    if (args.fingerprint):
+        file = args.fingerprint
+        if not (os.path.isfile(file)):
+            print ("file not found: {}".format(file))
+            sys.exit(0)
+
+    infile = open(args.fingerprint)
+    jsondata = json.load(infile)
+    data = jsondata[nodedport]
+    df = pd.DataFrame(data, columns=['dstport'])
+        
+    df.drop_duplicates('dstport', keep='first', inplace=True)
+
+    print ('dstport table size: ', len(df['dstport'])) 
+    
+    infile.close()
 
     return df
 
@@ -155,7 +217,6 @@ def smart_aggregate(df):
     return all_networks
 
 #------------------------------------------------------------------------------
-
 def to_string(s):
     try:
         return str(s)
@@ -164,7 +225,6 @@ def to_string(s):
         return s.encode('utf-8')
 
 #------------------------------------------------------------------------------
-
 def reduce_item(key, value):
     #global reduced_item
     
@@ -186,47 +246,67 @@ def reduce_item(key, value):
         reduced_item[to_string(key)] = to_string(value)
 
 #------------------------------------------------------------------------------
-
-def _attribute(category, atype, value):
+def _attribute(category, atype, value, comment):
     attribute = MISPAttribute()
     attribute.category = category
     attribute.type = atype
     attribute.value = value
+    attribute.comment = comment
     return attribute
 
 #------------------------------------------------------------------------------
-
 def add_attributes_ips(misp, event, ips):
 
     # create ipset
 
     for ip in ips:
-        #save ip in attribute
-        #add attribute to misp event
         print('processing ', ip)
         value = to_string(ip)
         print ('adding value: ', value)
-        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value), pythonify=True)
+        comment = 'attacker ip'
+        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
         
-    #print (event)
-
 #------------------------------------------------------------------------------
-
 def add_attributes_subnets(misp, event, all_networks):
 
-    # create netset
     for net in all_networks:
-        #save ip in attribute
-        #addd attribute to misp event
         print('processing ', net)
         value = to_string(net)
         print ('adding value: ', value)
-        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value), pythonify=True)
-
-    print (event)
+        comment = 'attacker subnet'
+        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
 
 #------------------------------------------------------------------------------
+def add_attributes_ports(misp, event, dport):
 
+    for dp in dport:
+        print('processing ', dp)
+        value = to_string(dp)
+        print ('adding value: ', value)
+        comment = 'destination port of attack'
+        misp.add_attribute(event, _attribute('Network activity', 'port', value, comment), pythonify=True)
+        
+#------------------------------------------------------------------------------
+def add_attributes_proto4(misp, event, proto4):
+
+    for p in proto4:
+        print('processing ', p)
+        value = to_string(p)
+        print ('adding value: ', value)
+        comment = '4 level protocol of attack'
+        misp.add_attribute(event, _attribute('Network activity', 'other', value, comment), pythonify=True)
+        
+#------------------------------------------------------------------------------
+def add_attributes_proto7(misp, event, proto7):
+
+    for p in proto7:
+        print('processing ', p)
+        value = to_string(p)
+        print ('adding value: ', value)
+        comment = 'higher level protocol of attack'
+        misp.add_attribute(event, _attribute('Network activity', 'other', value, comment), pythonify=True)
+        
+#------------------------------------------------------------------------------
 def add_attributes_from_json(misp, event, input_file):
 
     # add all ips in a json file
@@ -248,14 +328,14 @@ def add_attributes_from_json(misp, event, input_file):
         #print(str(row))
         value = str(row)
         print(value)
-        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value), pythonify=True)
+        comment = 'attacker ip'
+        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
         i += 1
 
     print('added ', i, ' attributes')
     infile.close()
 
-###############################################################################
-### Main Process
+# Main 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     parser = parser_args()
@@ -295,6 +375,12 @@ if __name__ == '__main__':
     no_of_ips = len(df['ip'])
     subnets = smart_aggregate(df)
     no_of_nets = len(subnets)
+    proto4 = find_ip_proto(args)
+    no_of_ip_proto = len(proto4['ip_proto'])
+    proto7 = find_high_proto(args)
+    no_of_high_proto = len(proto7['high_proto'])
+    dport = find_dstport(args)
+    no_of_dstport = len(dport['dstport'])
     
     print("Fingerprint processed: {}".format(args.fingerprint))
     print("IPs found: {}".format(len(df['ip'])))
@@ -312,7 +398,7 @@ if __name__ == '__main__':
     print(event)
 
     #add attributes 
-    #we may prefer to do: if no of ips < 500 add ips else add subnets
+    #we may prefer to do: if no of ips < N add ips else add subnets, where N is a cmd line arg
     if (addips):
         print ('adding ', no_of_ips,  ' ips')
         #add_attributes_from_json(misp, event, jfile)
@@ -321,7 +407,12 @@ if __name__ == '__main__':
         print ('adding ', no_of_nets, ' subnets')
         add_attributes_subnets(misp, event, subnets)
 
-    #add json file
+    #add other attributes
+    add_attributes_ports(misp, event, dport['dstport'])
+    add_attributes_proto4(misp, event, proto4['ip_proto'])
+    add_attributes_proto7(misp, event, proto7['high_proto'])
+
+    #add/upload json file to the event
     p = Path(args.fingerprint)
     a = MISPAttribute()
     a.type = 'attachment'
@@ -329,9 +420,5 @@ if __name__ == '__main__':
     a.data = p
     a.comment = 'DDoS fingerprint json file generated by dissector'
     misp.add_attribute(event, a)
-
-    #in future: add other attributes
-    #destination ports from the fingerprint
-    #add_other_attributes(misp, event, raw_data)
 
     print('done')
