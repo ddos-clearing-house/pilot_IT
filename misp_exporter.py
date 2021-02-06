@@ -24,6 +24,7 @@ import json
 import ipaddr
 import math
 import requests
+import mmap
 from pymisp import ExpandedPyMISP, MISPEvent, MISPAttribute, MISPObject
 from pymisp.tools import GenericObjectGenerator
 #from keys import misp_url, misp_key, misp_verifycert
@@ -44,6 +45,7 @@ except NameError:
 #the fingerprint json file should always be present as an arg 
 jfile = 'fingerprint.json'
 node = 'attackers'
+nodeamp = 'amplifiers'
 reduced_item = {}
 distribution = '1'
 threat_level = '2'
@@ -55,10 +57,12 @@ nodeproto4 = 'ip_proto'
 nodeproto7 = 'highest_protocol'
 no_of_ips = 0
 dstpot = 53
+amp = False
+att = False
 
 #parameters fo concordia-2020
-misp_url = 'MISP URL'
-misp_key = 'MISP automation Key'
+misp_url = 'https://misp.url/'
+misp_key = 'misp automation key'
 misp_verifycert = True
 
 verbose = False
@@ -91,7 +95,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
     
 #------------------------------------------------------------------------------
-def find_ips(args):
+def find_ips(args, node):
 
     file = args.fingerprint
     if (args.fingerprint):
@@ -284,6 +288,28 @@ def add_attributes_subnets(misp, event, all_networks):
         misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
 
 #------------------------------------------------------------------------------
+def add_attributes_ipsamp(misp, event, ips):
+
+    # create ipset
+
+    for ip in ips:
+        #print('processing ', ip)
+        value = to_string(ip)
+        print ('adding value: ', value)
+        comment = 'amplifier ip'
+        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
+        
+#------------------------------------------------------------------------------
+def add_attributes_subnetsamp(misp, event, all_networks):
+
+    for net in all_networks:
+        print('processing ', net)
+        value = to_string(net)
+        print ('adding value: ', value)
+        comment = 'amplifier subnet'
+        misp.add_attribute(event, _attribute('Network activity', 'ip-src', value, comment), pythonify=True)
+
+#------------------------------------------------------------------------------
 def add_attributes_ports(misp, event, dport):
 
     for dp in dport:
@@ -378,10 +404,28 @@ if __name__ == '__main__':
     if args.subnets:
         addips = False
 
-    df = find_ips(args)
-    no_of_ips = len(df['ip'])
-    subnets = smart_aggregate(df)
-    no_of_nets = len(subnets)
+    with open(jfile, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
+        if s.find(b'attackers') != -1:
+            print('attackers found')
+            att = True
+        if s.find(b'amplifiers') != -1:
+            print('amplifiers found')
+            amp = True
+            
+    #find attackers
+    if (att == True):
+        df = find_ips(args, node)
+        no_of_ips = len(df['ip'])
+        subnets = smart_aggregate(df)
+        no_of_nets = len(subnets)
+        
+    #find amplifiers
+    if (amp == True):
+        dfa = find_ips(args, nodeamp)
+        no_of_amp = len(dfa['ip'])
+        subnetsa = smart_aggregate(dfa)
+        no_of_netsa = len(subnetsa)
+
     proto4 = find_ip_proto(args)
     no_of_ip_proto = len(proto4['ip_proto'])
     proto7 = find_high_proto(args)
@@ -390,8 +434,12 @@ if __name__ == '__main__':
     no_of_dstport = len(dport['dstport'])
     
     print("Fingerprint processed: {}".format(args.fingerprint))
-    print("IPs found: {}".format(len(df['ip'])))
-    print("The IPs were summarized in: {} subnets".format(len(subnets)))
+    if (att == True):
+        print("IPs found: {}".format(len(df['ip'])))
+        print("The IPs were summarized in: {} subnets".format(len(subnets)))
+    if (amp == Trues):
+        print("Amplifier IPs found: {}".format(len(dfa['ip'])))
+        print("The IPs were summarized in: {} subnets".format(len(subnetsa)))
 
     misp = ExpandedPyMISP(misp_url, misp_key, misp_verifycert)
 
@@ -402,17 +450,28 @@ if __name__ == '__main__':
     event.info = event_info
 
     event = misp.add_event(event, pythonify=True)
-    #print(event.id)
-    #misp.tag(event.id,'validated','local')   
     #add attributes 
     #we may prefer to do: if no of ips < N add ips else add subnets, where N is a cmd line arg
-    if (addips):
-        print ('adding ', no_of_ips,  ' ips')
-        #add_attributes_from_json(misp, event, jfile)
-        add_attributes_ips(misp, event, df['ip'])
+    if (att == True): 
+        if (addips):
+            print ('adding ', no_of_ips,  ' ips')
+            #add_attributes_from_json(misp, event, jfile)
+            add_attributes_ips(misp, event, df['ip'])
+        else:
+            print ('adding ', no_of_nets, ' subnets')
+            add_attributes_subnets(misp, event, subnets)
+    elif (amp == True):
+        if (addips):
+            amp = True
+            print ('adding ', no_of_amp,  ' amplfier ips')
+            #add_attributes_from_json(misp, event, jfile)
+            add_attributes_ipsamp(misp, event, dfa['ip'])
+        else:
+            print ('adding ', no_of_netsa, ' subnets')
+            add_attributes_subnetsamp(misp, event, subnetsa)
     else:
-        print ('adding ', no_of_nets, ' subnets')
-        add_attributes_subnets(misp, event, subnets)
+        print('neither attackers nor amplifiers are present')
+
 
     #add other attributes
     add_attributes_ports(misp, event, dport['dstport'])
@@ -427,13 +486,17 @@ if __name__ == '__main__':
     a.data = p
     a.comment = 'DDoS fingerprint json file generated by dissector'
     misp.add_attribute(event, a)
-
-    misp.tag(event,'ddos attack',False) 
+    
+    if (amp == False):
+        misp.tag(event,'ddos attack',False) 
     misp.tag(event,'validated',False) 
+    if (amp == True):
+        misp.tag(event,'ddos amplification attack',False) 
+
     #print('publish the event')
     misp.publish(event)
     headers = {
-    'Authorization': 'MISP automation Key',
+    'Authorization': 'misp automation key',
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     }
@@ -446,7 +509,7 @@ if __name__ == '__main__':
     print('*****')
     print('event published at: https://misp.url/events/view/' + eventids)
     print('*****')
-    print('snort rule downloaded in current directory: ' + snortfile)
+    print('snort rule downloaded in: ' + snortfile)
     print('*****')
 
     print('***end***')
