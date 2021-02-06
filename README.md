@@ -4,7 +4,7 @@
 **misp_exporter.py** : 
 converts a fingerprint json file to a MISP event and publish it on a MISP instance. It also downloads in the local directory a file containig the snort rules created from the MISP event. The MISP instance URL and automation key can be filled in directly in pymisp or as a cmd line argument or in the misp_exporter.py file. 
 
-**Usage** :
+**Usage**
 
   --version : prints version and exits
 
