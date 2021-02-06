@@ -15,7 +15,8 @@ import argparse
 import logging
 import os
 import pandas as pd
-import re
+import Trues
+
 import signal
 import sys
 import string
@@ -437,7 +438,7 @@ if __name__ == '__main__':
     if (att == True):
         print("IPs found: {}".format(len(df['ip'])))
         print("The IPs were summarized in: {} subnets".format(len(subnets)))
-    if (amp == Trues):
+    if (amp == True):
         print("Amplifier IPs found: {}".format(len(dfa['ip'])))
         print("The IPs were summarized in: {} subnets".format(len(subnetsa)))
 
