@@ -57,8 +57,8 @@ no_of_ips = 0
 dstpot = 53
 
 #parameters fo concordia-2020
-misp_url = 'https://misp.concordia-h2020.eu/'
-misp_key = 'uHEjejxSA9SrCIYsknP0xBA8Rb6QwH6Lu4SjBA97'
+misp_url = 'MISP URL'
+misp_key = 'MISP automation Key'
 misp_verifycert = True
 
 verbose = False
@@ -433,22 +433,20 @@ if __name__ == '__main__':
     #print('publish the event')
     misp.publish(event)
     headers = {
-    'Authorization': 'uHEjejxSA9SrCIYsknP0xBA8Rb6QwH6Lu4SjBA97',
+    'Authorization': 'MISP automation Key',
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     }
     eventids = str(event.id)
-    urlsnort = 'https://misp.concordia-h2020.eu/events/restSearch/returnFormat:snort/eventid:' + eventids + '/'
-    #print(urlsnort)
-    #response = requests.get('https://misp.concordia-h2020.eu/events/restSearch/returnFormat:snort/eventid:11612/', headers=headers)
+    urlsnort = 'https://misp.url/events/restSearch/returnFormat:snort/eventid:' + eventids + '/'
     response = requests.get(urlsnort, headers=headers)
     snortfile = 'snort_rules_' + eventids + '.txt'
     open(snortfile,'wb').write(response.content)
     
     print('*****')
-    print('event published at: https://misp.concordia-h2020.eu/events/view/' + eventids)
+    print('event published at: https://misp.url/events/view/' + eventids)
     print('*****')
-    print('snort rule downloaded in: ' + snortfile)
+    print('snort rule downloaded in current directory: ' + snortfile)
     print('*****')
 
     print('***end***')
