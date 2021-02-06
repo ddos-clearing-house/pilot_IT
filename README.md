@@ -2,7 +2,7 @@
 **DDoS Clearing House Pilot Italy**
 
 **misp_exporter.py** : 
-converts a fingerprint json file to a MISP event and publish it on a MISP instance. It also downloads in a file in the local directory the snort rules created from the MISP event. The MISP instance URL and automation key can be filled in in pymisp or as a cmd line argument or directly in the misp_exporter.py file. 
+converts a fingerprint json file to a MISP event and publish it on a MISP instance. It also downloads in the local directory a file containig the snort rules created from the MISP event. The MISP instance URL and automation key can be filled in directly in pymisp or as a cmd line argument or in the misp_exporter.py file. 
 
 **Usage** :
 
@@ -35,7 +35,7 @@ converts a fingerprint json file to a MISP event and publish it on a MISP instan
 
 You need to install the following modules:
 
-PyMISP from pip: *pip install pymisp* or *pip3 install pymisp*.
+pymisp: *pip install pymisp* or *pip3 install pymisp*
 
 requests
 
