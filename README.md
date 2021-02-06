@@ -1,8 +1,8 @@
 # pilot_IT
-DDoS Clearing House Pilot Italy
+**DDoS Clearing House Pilot Italy**
 
 **misp_exporter.py** : 
-exports a fingerprint json file to a MISP event and publish it on a MISP instance of your choice, the default MISP instance is misp.concordia-h2020.eu. please provide your automation key in pymisp or as a cmd line argument or directly in the misp_exporter.py file.
+converts a fingerprint json file to a MISP event and publish it on a MISP instance. It also downloads in a file in the local directory the snort rules created from the MISP event. The MISP instance URL and automation key can be filled in in pymisp or as a cmd line argument or directly in the misp_exporter.py file. 
 
 **Usage** :
 
@@ -33,5 +33,16 @@ exports a fingerprint json file to a MISP event and publish it on a MISP instanc
 
 **Requirements** : 
 
-Install PyMISP from pip: *pip install pymisp* or *pip3 install pymisp*.
+You need to install the following modules:
+
+PyMISP from pip: *pip install pymisp* or *pip3 install pymisp*.
+
+requests
+
+ipaddr, ipaddress
+
+pandas
+
+json
+
 
