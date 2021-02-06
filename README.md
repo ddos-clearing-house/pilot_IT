@@ -12,13 +12,13 @@ converts a fingerprint json file to a MISP event and publish it on a MISP instan
   
   -d or --debug : prints debug information
   
-  -f or --fingerprint : fingerprint json file
+  -f or --fingerprint : name of the fingerprint json file
   
   -n or --node : the json fingerprint file node, default value is "attackers"
   
-  -u or --misp_url : URL of the MISP instance where to publish the event, default value is misp.concordia-h2020.eu
+  -u or --misp_url : URL of the MISP instance where to publish the event
   
-  -k or --misp_apikey : API key of the account on the MISP instance where to publish
+  -k or --misp_apikey : MISP automation key of the account on the MISP instance where the event should be published
   
   -l or --distribution, type=int : The distribution level for the newly created event [0-3]
   
@@ -28,12 +28,12 @@ converts a fingerprint json file to a MISP event and publish it on a MISP instan
   
   -t or --threat_level, type=int : The threat level ID of the newly created event [1-4]
   
-  -s or --subnets : add subnets as attributes instead of ips
+  -s or --subnets : add subnets as attributes of the event instead of ips (reccomended if the number of ip addresses is huge)
 
 
 **Requirements** 
 
-You need to install the following modules:
+The following modules should be installed:
 
 pymisp: *pip install pymisp* or *pip3 install pymisp*
 
