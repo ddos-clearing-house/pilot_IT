@@ -31,7 +31,7 @@ converts a fingerprint json file to a MISP event and publish it on a MISP instan
   -s or --subnets : add subnets as attributes instead of ips
 
 
-**Requirements** : 
+**Requirements** 
 
 You need to install the following modules:
 
